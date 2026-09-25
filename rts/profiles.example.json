@@ -1,0 +1,16 @@
+{
+  "default": {
+    "name": "default",
+    "panSpeed": 1.0,
+    "panInvert": true,
+    "zoomSpeed": 0.35,
+    "tickMs": 12,
+    "releaseMs": 700,
+    "margin": 60,
+    "targetSerial": "",
+    "package": "air.com.midjiwan.polytopia",
+    "displaySize": "1920x1080/240",
+    "noAudio": true,
+    "shortcutMod": "lctrl"
+  }
+}
