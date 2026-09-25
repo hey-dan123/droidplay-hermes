@@ -163,7 +163,9 @@ def _validated_record(value: Mapping[str, Any], defaults: Mapping[str, Any], all
     for key, raw in value.items():
         default = defaults[key]
         if isinstance(default, bool):
-            out[key] = bool(raw)
+            if not isinstance(raw, bool):
+                raise ValueError(f"{key} must be a boolean")
+            out[key] = raw
         elif isinstance(default, float):
             out[key] = _number(raw, key, 0.0, 1000.0, default)
         elif isinstance(default, int):

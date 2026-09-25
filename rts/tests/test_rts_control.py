@@ -110,6 +110,13 @@ class ConfigTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 load_config(path)
 
+    def test_load_config_rejects_string_boolean(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.json"
+            path.write_text(json.dumps({"panInvert": "false"}))
+            with self.assertRaises(ValueError):
+                load_config(path)
+
     def test_profile_round_trip(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "profile.json"
