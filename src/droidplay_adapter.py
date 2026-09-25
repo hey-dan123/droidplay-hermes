@@ -11,6 +11,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Iterable
@@ -189,11 +190,30 @@ def main(argv: list[str] | None = None) -> int:
         action = validate_action(action, args[1] if len(args) > 1 else None)
         if action == "ask-hermes":
             question = args[1] if len(args) > 1 else ""
-            print(run_hermes(prompt=build_prompt(normalize_status({}), question)))
+            context: dict[str, Any] = {}
+            if len(args) > 2:
+                try:
+                    candidate = json.loads(args[2])
+                except json.JSONDecodeError as exc:
+                    raise AdapterError("Invalid DroidPlay status context") from exc
+                if not isinstance(candidate, dict):
+                    raise AdapterError("DroidPlay status context must be an object")
+                context = candidate
+            print(run_hermes(prompt=build_prompt(context, question)))
             return 0
-        if action in {"status", "play", "stop"}:
-            print(json.dumps(normalize_status({}), sort_keys=True))
+        if action == "status":
+            result = normalize_status({})
+            result["error"] = "DroidPlay bridge is not configured"
+            result["errors"] = result["errors"] + [result["error"]]
+            print(json.dumps(result, sort_keys=True))
             return 0
+        if action in {"play", "stop"}:
+            result = normalize_status({})
+            result["status"] = "error"
+            result["error"] = "DroidPlay control actions are disabled in this MVP"
+            result["errors"] = [result["error"]]
+            print(json.dumps(result, sort_keys=True), file=__import__("sys").stderr)
+            return 1
         raise AdapterError("Unsupported action")
     except AdapterError as exc:
         print(json.dumps({"status": "error", "error": str(exc)}, sort_keys=True), file=__import__("sys").stderr)

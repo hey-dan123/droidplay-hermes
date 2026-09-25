@@ -1,4 +1,3 @@
-.pragma library
 import QtQuick
 
 BarWidget {
@@ -27,6 +26,7 @@ BarWidget {
 
   function open() {
     if (panel && panel.openFromHotkey) panel.openFromHotkey()
+    else if (panel && panel.open) panel.open()
   }
 
   function close() {

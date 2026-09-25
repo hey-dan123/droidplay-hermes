@@ -1,4 +1,3 @@
-.pragma library
 import QtQuick
 import QtQuick.Controls
 import Quickshell
@@ -12,10 +11,9 @@ Panel {
   ipcTarget: "droidplay-hermes"
   manageIpc: false
 
-  property QtObject bar: null
-  property var settings: ({})
   property var anchorItem: null
   property var hostWidget: null
+  readonly property var barIdentity: hostWidget || root
   property string adapterCommand: String((settings && settings.droidplayCommand) || "droidplay-adapter")
   readonly property int refreshSeconds: Math.max(10, parseInt(String((settings && settings.refreshSeconds) || 15), 10) || 15)
   readonly property int hermesTimeoutSeconds: Math.max(10, parseInt(String((settings && settings.hermesTimeoutSeconds) || 45), 10) || 45)
@@ -31,6 +29,8 @@ Panel {
   property string label: "DroidPlay · unknown"
   property string _statusOutput: ""
   property string _statusError: ""
+  property string _hermesOutput: ""
+  property string _hermesError: ""
 
   function refresh() {
     if (statusProcess.running) return
@@ -61,8 +61,19 @@ Panel {
 
   function askHermes() {
     if (asking || !String(lastQuestion).trim()) return
-    asking = true
     lastError = ""
+    _hermesOutput = ""
+    _hermesError = ""
+    var context = JSON.stringify({status: status, service: service, receiver: receiver})
+    hermesProcess.command = [
+      adapterCommand,
+      "ask-hermes",
+      String(lastQuestion),
+      context,
+      String(hermesTimeoutSeconds)
+    ]
+    hermesProcess.running = true
+    asking = true
   }
 
   IpcHandler {
@@ -85,15 +96,46 @@ Panel {
   }
 
   Process {
+    id: hermesProcess
+    running: false
+    command: []
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root._hermesOutput = text
+    }
+    stderr: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root._hermesError = text
+    }
+    onExited: function(exitCode) {
+      root.asking = false
+      if (exitCode === 0) {
+        var answer = String(root._hermesOutput || "").trim()
+        if (answer) root.lastAnswer = answer
+        else root.lastError = "Hermes returned no answer"
+      } else {
+        root.lastError = String(root._hermesError || "Hermes request failed").trim().slice(0, 240)
+      }
+    }
+  }
+
+  Process {
     id: statusProcess
     running: false
     command: []
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root._statusOutput = text }
-    stderr: StdioCollector { waitForEnd: true; onStreamFinished: root._statusError = text }
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root._statusOutput = text
+    }
+    stderr: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root._statusError = text
+    }
     onExited: function(exitCode) {
       root.checking = false
-      if (exitCode === 0) root.applyStatus(root._statusOutput)
-      else {
+      if (exitCode === 0) {
+        root.applyStatus(root._statusOutput)
+      } else {
         root.status = "error"
         root.service = "unknown"
         root.lastError = String(root._statusError || root._statusOutput || "DroidPlay adapter failed").trim().slice(0, 240)
@@ -105,7 +147,7 @@ Panel {
   KeyboardPanel {
     id: panel
     anchorItem: root.anchorItem
-    owner: root
+    owner: root.barIdentity
     bar: root.bar
     open: root.opened
     centerOnBar: true
@@ -116,6 +158,8 @@ Panel {
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
+      blocked: questionField.activeFocus
+      onActivateRequested: root.refresh()
       onReturnRequested: root.refresh()
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
@@ -173,7 +217,7 @@ Panel {
 
         Button {
           width: parent.width
-          text: root.asking ? "Ask Hermes in terminal" : "Ask Hermes"
+          text: root.asking ? "Asking Hermes…" : "Ask Hermes"
           enabled: !root.asking && questionField.text.trim() !== ""
           onClicked: {
             root.lastQuestion = questionField.text
