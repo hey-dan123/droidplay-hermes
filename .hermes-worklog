@@ -1,0 +1,12 @@
+# DroidPlay Hermes — working notes
+
+- The Omarchy bar plugin remains a status/advice MVP; live QML loading was not
+  fixed and is still reported as a separate blocker.
+- The RTS redesign is a clean-room Linux Wayland control policy under `rts/`.
+  It replaces Hammerspoon's global mouse re-anchoring with normalized held-key
+  state and a future focused-session evdev/ydotool bridge.
+- The RTS policy layer and safe scrcpy argv builder are tested. The live
+  evdev/ydotool emitter is intentionally not enabled without explicit device,
+  scrcpy, and permission verification.
+- The RTS commit was pushed to GitHub as `b64c397`; verify the remote read and
+  report only after that check succeeds.
