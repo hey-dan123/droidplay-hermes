@@ -1,0 +1,5 @@
+# DroidPlay Hermes
+
+Omarchy bar widget for DroidPlay status and bounded Hermes strategy advice.
+
+MVP is status + advice only. The adapter contract is documented in `src/droidplay_adapter.py` and `README.md`.
