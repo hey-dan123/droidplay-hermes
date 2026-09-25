@@ -1,105 +1,70 @@
-# DroidPlay RTS for Omarchy
+# RTS control policy
 
-A redesign of the Mac Hammerspoon map-control experiment as a native Linux
-Wayland helper for the DroidPlay `scrcpy` kiosk.
+The Mac experiment used Hammerspoon event taps and synthetic cursor motion:
+WASD became a held mouse drag, and two-finger scroll became a Ctrl-drag pinch.
+That is a workable Mac workaround, but it is not a good Linux/Wayland design.
 
-## The replacement
-
-The old path was:
-
-```text
-macOS Hammerspoon → synthesize mouse drag → scrcpy → Android touch
-```
-
-The new path is:
+The Omarchy redesign uses a compositor-native boundary:
 
 ```text
-Linux evdev keyboard listener → normalized gesture state → ydotool/uinput
-  → focused scrcpy pointer events → Android touch
+raw evdev keyboard events → normalized GestureState → focused-session gate
+  → ydotool/uinput pointer events → scrcpy → Android touch
 ```
 
-This removes Hammerspoon and its macOS Accessibility boundary. It also removes
-the fragile “move the physical cursor, re-anchor, and paste a drag” loop. The
-Linux helper owns a small state machine instead:
+The policy layer is implemented and tested. The live input bridge is deliberately
+not enabled from a source checkout. It must first be installed as a user service
+with an explicit device-selection and focus gate, then exercised against a real
+Android device. No synthetic input is emitted by tests or by `rts_helper.py`.
 
-- W/A/S/D or arrow keys are held-key pan controls.
-- Diagonal movement is normalized, so panning speed does not jump when two
-  axes are held.
-- Pan and zoom gestures are mutually exclusive; a scroll/zoom gesture always
-  ends a live pan first.
-- Normal desktop keys pass through unchanged.
-- Input is only accepted while the configured scrcpy window is focused.
-- The helper starts a scrcpy kiosk itself with validated argv, rather than
-  accepting a shell string.
+## Behavior contract
 
-## Deliberate safety boundary
+- Hold `W/A/S/D` or arrow keys to pan.
+- Diagonal input is normalized, so a diagonal does not become 1.4× faster.
+- Releasing the final movement key clears the pan state.
+- Non-control keys are ignored by the policy layer.
+- Pan and zoom are separate gestures; the future bridge must finish the active
+  pan before starting a zoom.
+- Input is accepted only while the exact scrcpy kiosk window is focused.
+- Hermes advice is displayed as advice; it never chooses input commands.
 
-The live input emitter is not enabled by merely installing this directory. It
-requires all of the following:
+## Requirements for the live bridge
 
-1. `ydotool` and `ydotoold` are installed and the operator explicitly starts
-   the daemon.
-2. A real Android device is connected and authorized through ADB.
-3. The operator configures the exact package and, preferably, a USB serial.
-4. The focused window is a scrcpy window launched by this helper.
+- `scrcpy` 4.1 on Arch (verified in the configured repositories).
+- `android-platform-tools`/`adb`.
+- `ydotool` and `ydotoold` for uinput pointer injection.
+- `python-evdev` for raw keyboard events.
+- User membership/access for `/dev/input` and `/dev/uinput`; never run this as
+  root merely to bypass permissions.
 
-The helper never runs Hermes output as a command. Hermes advice is a separate
-consumer of game state, not an input controller.
+The configured Arch repositories currently report:
 
-## Requirements
+- `scrcpy 4.1-2`
+- `ydotool 1.0.4-2`
+- `python-evdev 2.0.0-1`
 
-- Omarchy 4.0.4 or compatible Quickshell shell.
-- `scrcpy` 4.0+ for virtual-display kiosk support.
-- `android-platform-tools` for `adb`.
-- `ydotool` and `ydotoold` for Linux uinput pointer injection.
-- `python-evdev` in a user-owned virtual environment for raw keyboard events.
-- User access to `/dev/input` for reading the keyboard and `/dev/uinput` for
-  ydotool. Do not run the helper as root.
-
-On Arch, install the packaged prerequisites with:
-
-```bash
-sudo pacman -S scrcpy android-platform-tools ydotool python-evdev
-```
-
-The `python-evdev` package may be absent in a future Arch repository. In that
-case create a user-owned venv instead of installing packages system-wide:
-
-```bash
-python3 -m venv ~/.local/share/droidplay-rts-venv
-~/.local/share/droidplay-rts-venv/bin/pip install python-evdev
-```
+The binaries are not installed on this Omarchy host yet, and no authorized
+Android device has been observed here. Consequently no live input claim is made.
 
 ## Configuration
 
-Copy the example profile and edit it:
+The example profile is `profiles.example.json`. Copy it to:
 
-```bash
-cp rts/profiles.example.json ~/.config/droidplay-rts/profiles.json
+```text
+~/.config/droidplay-rts/profiles.json
 ```
 
-The JSON document is deliberately allowlisted. Unknown keys are errors rather
-than silently ignored settings.
+Unknown keys fail validation. The package, display size, serial, and shortcut
+modifier are passed as separate argv entries, never assembled into a shell
+command.
 
-`package` must be a valid Android application package. `displaySize` accepts
-`WIDTHxHEIGHT[/DPI]`. `targetSerial` is a literal ADB serial; it is passed as a
-separate argument and never interpolated into a shell command.
-
-## Tests
+## Test
 
 ```bash
 cd rts
 python3 -m unittest discover -s tests -v
+python3 -m py_compile rts_control.py rts_helper.py
+python3 rts_helper.py show-config
 ```
 
-The tests cover key normalization, diagonal velocity, release cleanup,
-profile round-tripping, unknown-key rejection, and safe scrcpy argv construction.
-They do not emit synthetic input.
-
-## Current limitation
-
-The policy/state-machine layer and safe launch argument builder are tested.
-The raw-evdev listener and live pointer emitter are intentionally not enabled
-until the local device path, scrcpy version, and udev permissions are verified
-on this Omarchy host. Until then this is a redesign artifact, not a claim that
-RTS keyboard control is playable.
+The helper's `launch-args` action prints validated JSON argv for review. It does
+not start `scrcpy`, `adb`, or `ydotoold`.
