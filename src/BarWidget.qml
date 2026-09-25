@@ -1,4 +1,6 @@
 import QtQuick
+import qs.Commons
+import qs.Ui
 
 BarWidget {
   id: root
@@ -10,10 +12,10 @@ BarWidget {
   function injectPanel() {
     var target = panelLoader.item
     if (!target) return
-    target.setProperty("bar", root.bar)
-    target.setProperty("settings", root.settings)
-    target.setProperty("anchorItem", button)
-    target.setProperty("hostWidget", root)
+    if ("bar" in target) target.bar = root.bar
+    if ("settings" in target) target.settings = root.settings
+    if ("anchorItem" in target) target.anchorItem = button
+    if ("hostWidget" in target) target.hostWidget = root
   }
 
   function refresh() {

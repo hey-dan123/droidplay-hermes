@@ -16,7 +16,7 @@ Panel {
   property var anchorItem: null
   property var hostWidget: null
   readonly property var barIdentity: hostWidget || root
-  property string adapterCommand: String((settings && settings.droidplayCommand) || "droidplay-adapter")
+  property string droidplayCommand: String((settings && settings.droidplayCommand) || "droidplay-adapter")
   readonly property int refreshSeconds: Math.max(10, parseInt(String((settings && settings.refreshSeconds) || 15), 10) || 15)
   readonly property int hermesTimeoutSeconds: Math.max(10, parseInt(String((settings && settings.hermesTimeoutSeconds) || 45), 10) || 45)
 
@@ -39,7 +39,7 @@ Panel {
     _statusOutput = ""
     _statusError = ""
     checking = true
-    statusProcess.command = [adapterCommand, "status"]
+    statusProcess.command = [droidplayCommand, "status"]
     statusProcess.running = true
   }
 
@@ -68,7 +68,7 @@ Panel {
     _hermesError = ""
     var context = JSON.stringify({status: status, service: service, receiver: receiver})
     hermesProcess.command = [
-      adapterCommand,
+      droidplayCommand,
       "ask-hermes",
       String(lastQuestion),
       context,
