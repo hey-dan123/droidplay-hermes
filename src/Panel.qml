@@ -11,6 +11,8 @@ Panel {
   ipcTarget: "droidplay-hermes"
   manageIpc: false
 
+  property var bar: null
+  property var settings: ({})
   property var anchorItem: null
   property var hostWidget: null
   readonly property var barIdentity: hostWidget || root
